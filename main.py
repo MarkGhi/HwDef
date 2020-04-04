@@ -67,12 +67,12 @@ class InfoBox(npyscreen.BoxTitle):
 
         self.values = [
             "",
-            f"System: {uname.system}",
-            f"Node Name: {uname.node}",
-            f"Release: {uname.release}",
-            f"Version: {uname.version}",
-            f"Machine: {uname.machine}",
-            f"Processor: {uname.processor}"
+            f"  System: {uname.system}",
+            f"  Node Name: {uname.node}",
+            f"  Release: {uname.release}",
+            f"  Version: {uname.version}",
+            f"  Machine: {uname.machine}",
+            f"  Processor: {uname.processor}"
         ]
 
         self.display()
@@ -82,14 +82,14 @@ class InfoBox(npyscreen.BoxTitle):
 
         self.values = [
             "",
-            self.get_processor_name().decode('utf-8'),
+            "  %s" % self.get_processor_name().decode('utf-8'),
             "",
-            "Physical cores: %s" % str(
+            "  Physical cores: %s" % str(
                 psutil.cpu_count(logical=False)),
-            "Total cores: %s" % str(
+            "  Total cores: %s" % str(
                 psutil.cpu_count(logical=True)),
-            f"Max Frequency: {cpufreq.max:.2f}Mhz",
-            f"Min Frequency: {cpufreq.min:.2f}Mhz"
+            f"  Max Frequency: {cpufreq.max:.2f}Mhz",
+            f"  Min Frequency: {cpufreq.min:.2f}Mhz"
         ]
 
         while self._can_update:
@@ -97,12 +97,12 @@ class InfoBox(npyscreen.BoxTitle):
             if len(self.values) > 7:
                 del self.values[7:]
 
-            self.values.append(f"Current Frequency: {cpufreq.current:.2f}Mhz")
+            self.values.append(f"  Current Frequency: {cpufreq.current:.2f}Mhz")
 
             for i, percentage in enumerate(psutil.cpu_percent(percpu=True)):
-                self.values.append(f"Core {i}: {percentage}%")
+                self.values.append(f"  Core {i}: {percentage}%")
 
-            self.values.append(f"Total CPU Usage: {psutil.cpu_percent()}%")
+            self.values.append(f"  Total CPU Usage: {psutil.cpu_percent()}%")
 
             self.display()
             time.sleep(1)
@@ -113,18 +113,59 @@ class InfoBox(npyscreen.BoxTitle):
 
         self.values = [
             "",
-            "Memory",
-            f"Total: {self.get_size(svmem.total)}",
-            f"Available: {self.get_size(svmem.available)}",
-            f"Used: {self.get_size(svmem.used)}",
-            f"Percentage: {svmem.percent}%",
+            "  Memory",
+            f"  Total: {self.get_size(svmem.total)}",
+            f"  Available: {self.get_size(svmem.available)}",
+            f"  Used: {self.get_size(svmem.used)}",
+            f"  Percentage: {svmem.percent}%",
             "",
-            "Swap",
-            f"Total: {self.get_size(swap.total)}",
-            f"Free: {self.get_size(swap.free)}",
-            f"Used: {self.get_size(swap.used)}",
-            f"Percentage: {swap.percent}%"
+            "  Swap",
+            f"  Total: {self.get_size(swap.total)}",
+            f"  Free: {self.get_size(swap.free)}",
+            f"  Used: {self.get_size(swap.used)}",
+            f"  Percentage: {swap.percent}%"
         ]
+
+        self.display()
+
+    def set_disk_info(self):
+        partitions = psutil.disk_partitions()
+        
+        self.values = [""]
+
+        for partition in partitions:
+            self.values.append(f"  Mountpoint: {partition.mountpoint}")
+            self.values.append(f"  File system type: {partition.fstype}")
+            try:
+                partition_usage = psutil.disk_usage(partition.mountpoint)
+            except PermissionError:
+                # This can be catched due to the disk that isn't ready
+                continue
+            self.values.append(f"  Total Size: {self.get_size(partition_usage.total)}")
+            self.values.append(f"  Used: {self.get_size(partition_usage.used)}")
+            self.values.append(f"  Free: {self.get_size(partition_usage.free)}")
+            self.values.append(f"  Percentage: {partition_usage.percent}%")
+            self.values.append("")
+
+        self.display()
+
+    def set_network_info(self):
+        if_addrs = psutil.net_if_addrs()
+
+        self.values = [""]
+
+        for interface_name, interface_addresses in if_addrs.items():
+            for address in interface_addresses:
+                self.values.append(f"  Interface: {interface_name}")
+                if str(address.family) == 'AddressFamily.AF_INET':
+                    self.values.append(f"  IP Address: {address.address}")
+                    self.values.append(f"  Netmask: {address.netmask}")
+                    self.values.append(f"  Broadcast IP: {address.broadcast}")
+                elif str(address.family) == 'AddressFamily.AF_PACKET':
+                    self.values.append(f"  MAC Address: {address.address}")
+                    self.values.append(f"  Netmask: {address.netmask}")
+                    self.values.append(f"  Broadcast MAC: {address.broadcast}")
+                self.values.append("")
 
         self.display()
 
@@ -140,6 +181,10 @@ class InfoBox(npyscreen.BoxTitle):
             threading.Thread(target=self.set_cpu_info).start()
         elif selected_item == 2:
             self.set_ram_info()
+        elif selected_item == 3:
+            self.set_disk_info()
+        elif selected_item == 4:
+            self.set_network_info()
 
 
 class MenuList(npyscreen.BoxTitle):
