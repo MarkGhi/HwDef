@@ -21,7 +21,8 @@ class MainForm(npyscreen.FormBaseNew):
 
         self.menu_list = self.add(MenuList,
                                   name="Menu",
-                                  values=["General", "Cpu", "Ram", "Disk", "Network"],
+                                  values=["General", "Cpu", "Ram",
+                                          "Disk", "Network", "Temperatures"],
                                   max_width=x // 4)
 
         self.info_box = self.add(InfoBox,
@@ -97,7 +98,8 @@ class InfoBox(npyscreen.BoxTitle):
             if len(self.values) > 7:
                 del self.values[7:]
 
-            self.values.append(f"  Current Frequency: {cpufreq.current:.2f}Mhz")
+            self.values.append(
+                f"  Current Frequency: {cpufreq.current:.2f}Mhz")
 
             for i, percentage in enumerate(psutil.cpu_percent(percpu=True)):
                 self.values.append(f"  Core {i}: {percentage}%")
@@ -130,7 +132,7 @@ class InfoBox(npyscreen.BoxTitle):
 
     def set_disk_info(self):
         partitions = psutil.disk_partitions()
-        
+
         self.values = [""]
 
         for partition in partitions:
@@ -141,9 +143,12 @@ class InfoBox(npyscreen.BoxTitle):
             except PermissionError:
                 # This can be catched due to the disk that isn't ready
                 continue
-            self.values.append(f"  Total Size: {self.get_size(partition_usage.total)}")
-            self.values.append(f"  Used: {self.get_size(partition_usage.used)}")
-            self.values.append(f"  Free: {self.get_size(partition_usage.free)}")
+            self.values.append(
+                f"  Total Size: {self.get_size(partition_usage.total)}")
+            self.values.append(
+                f"  Used: {self.get_size(partition_usage.used)}")
+            self.values.append(
+                f"  Free: {self.get_size(partition_usage.free)}")
             self.values.append(f"  Percentage: {partition_usage.percent}%")
             self.values.append("")
 
@@ -169,6 +174,38 @@ class InfoBox(npyscreen.BoxTitle):
 
         self.display()
 
+    def set_temperatures_info(self):
+        if hasattr(psutil, "sensors_temperatures"):
+            temps = psutil.sensors_temperatures()
+        else:
+            temps = {}
+        if hasattr(psutil, "sensors_fans"):
+            fans = psutil.sensors_fans()
+        else:
+            fans = {}
+
+        if not any((temps, fans)):
+            self.values = ["", "Cannot read sensors"]
+        else:
+            self.values = [""]
+
+            names = set(list(temps.keys()) + list(fans.keys()))
+            for name in names:
+                # Temperatures.
+                if name in temps:
+                    self.values.append("   Temperatures:")
+                    for entry in temps[name]:
+                        self.values.append("     %-20s %s°C (high=%s°C, critical=%s°C)" % (
+                            entry.label or name, entry.current, entry.high, entry.critical))
+                # Fans.
+                if name in fans:
+                    self.values.append("   Fans:")
+                    for entry in fans[name]:
+                        self.values.append("     %-20s %s RPM" %
+                                           (entry.label or name, entry.current))
+
+        self.display()
+
     def update_info(self, selected_item):
         # Permit to the thread to update info_box value, set to False to interrupt any running thread
         self._can_update = False
@@ -185,6 +222,8 @@ class InfoBox(npyscreen.BoxTitle):
             self.set_disk_info()
         elif selected_item == 4:
             self.set_network_info()
+        elif selected_item == 5:
+            self.set_temperatures_info()
 
 
 class MenuList(npyscreen.BoxTitle):
