@@ -46,7 +46,7 @@ class InfoBox(npyscreen.BoxTitle):
         elif platform.system() == "Darwin":
             return subprocess.check_output(['/usr/sbin/sysctl', "-n", "machdep.cpu.brand_string"]).strip()
         elif platform.system() == "Linux":
-            command = "lscpu | GREP 'Model name'"
+            command = "lscpu | grep 'Model name'"
             return subprocess.check_output(command, shell=True)
         return ""
 
