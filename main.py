@@ -46,8 +46,8 @@ class InfoBox(npyscreen.BoxTitle):
         elif platform.system() == "Darwin":
             return subprocess.check_output(['/usr/sbin/sysctl', "-n", "machdep.cpu.brand_string"]).strip()
         elif platform.system() == "Linux":
-            command = "cat /proc/cpuinfo"
-            return subprocess.check_output(command, shell=True).strip()
+            command = "lscpu | GREP 'Model name'"
+            return subprocess.check_output(command, shell=True)
         return ""
 
     def get_size(self, bytes, suffix="B"):
@@ -83,7 +83,7 @@ class InfoBox(npyscreen.BoxTitle):
 
         self.values = [
             "",
-            "  %s" % self.get_processor_name().decode('utf-8'),
+            "  %s" % self.get_processor_name().decode('utf-8').replace("Model name:", "").strip(),
             "",
             "  Physical cores: %s" % str(
                 psutil.cpu_count(logical=False)),
