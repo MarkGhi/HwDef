@@ -37,6 +37,7 @@ class MainForm(npyscreen.FormBaseNew):
 
 class InfoBox(npyscreen.BoxTitle):
     def create(self, **kwargs):
+        self.current_thread = None
         self._can_update = True
         self.set_general_info()
 
@@ -219,23 +220,28 @@ class InfoBox(npyscreen.BoxTitle):
     def update_info(self, selected_item):
         # Permit to the thread to update info_box value, set to False to interrupt any running thread
         self._can_update = False
+        if self.current_thread is not None:
+            self.current_thread.join()
 
         if selected_item == 0:
             self.set_general_info()
         elif selected_item == 1:
             # Set to True to allow thread to run
             self._can_update = True
-            threading.Thread(target=self.set_cpu_info).start()
+            self.current_thread = threading.Thread(target=self.set_cpu_info)
+            self.current_thread.start()
         elif selected_item == 2:
             self._can_update = True
-            threading.Thread(target=self.set_ram_info).start()
+            self.current_thread = threading.Thread(target=self.set_ram_info)
+            self.current_thread.start()
         elif selected_item == 3:
             self.set_disk_info()
         elif selected_item == 4:
             self.set_network_info()
         elif selected_item == 5:
             self._can_update = True
-            threading.Thread(target=self.set_temperatures_info).start()
+            self.current_thread = threading.Thread(target=self.set_temperatures_info)
+            self.current_thread.start()
 
 
 class MenuList(npyscreen.BoxTitle):
