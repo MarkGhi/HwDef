@@ -73,7 +73,7 @@ class InfoBox(npyscreen.BoxTitle):
             f"  Release: {uname.release}",
             f"  Version: {uname.version}",
             f"  Machine: {uname.machine}",
-            f"  Processor: {uname.processor}"
+            f"  Processor: %s" % self.get_processor_name().decode('utf-8').replace("Model name:", "").strip()
         ]
 
         self.display()
@@ -110,25 +110,29 @@ class InfoBox(npyscreen.BoxTitle):
             time.sleep(1)
 
     def set_ram_info(self):
-        svmem = psutil.virtual_memory()
-        swap = psutil.swap_memory()
+        while self._can_update:
+            svmem = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+            
+            self.values.clear()
 
-        self.values = [
-            "",
-            "  Memory",
-            f"  Total: {self.get_size(svmem.total)}",
-            f"  Available: {self.get_size(svmem.available)}",
-            f"  Used: {self.get_size(svmem.used)}",
-            f"  Percentage: {svmem.percent}%",
-            "",
-            "  Swap",
-            f"  Total: {self.get_size(swap.total)}",
-            f"  Free: {self.get_size(swap.free)}",
-            f"  Used: {self.get_size(swap.used)}",
-            f"  Percentage: {swap.percent}%"
-        ]
+            self.values = [
+                "",
+                "  Memory",
+                f"  Total: {self.get_size(svmem.total)}",
+                f"  Available: {self.get_size(svmem.available)}",
+                f"  Used: {self.get_size(svmem.used)}",
+                f"  Percentage: {svmem.percent}%",
+                "",
+                "  Swap",
+                f"  Total: {self.get_size(swap.total)}",
+                f"  Free: {self.get_size(swap.free)}",
+                f"  Used: {self.get_size(swap.used)}",
+                f"  Percentage: {swap.percent}%"
+            ]
 
-        self.display()
+            self.display()
+            time.sleep(1)
 
     def set_disk_info(self):
         partitions = psutil.disk_partitions()
@@ -175,36 +179,42 @@ class InfoBox(npyscreen.BoxTitle):
         self.display()
 
     def set_temperatures_info(self):
-        if hasattr(psutil, "sensors_temperatures"):
-            temps = psutil.sensors_temperatures()
-        else:
-            temps = {}
-        if hasattr(psutil, "sensors_fans"):
-            fans = psutil.sensors_fans()
-        else:
-            fans = {}
+        while self._can_update:
+            if hasattr(psutil, "sensors_temperatures"):
+                temps = psutil.sensors_temperatures()
+            else:
+                temps = {}
+            if hasattr(psutil, "sensors_fans"):
+                fans = psutil.sensors_fans()
+            else:
+                fans = {}
+            if not any((temps, fans)):
+                self.values = ["", "Cannot read sensors"]
+            else:
+                self.values.clear()
+                self.values = [""]
 
-        if not any((temps, fans)):
-            self.values = ["", "Cannot read sensors"]
-        else:
-            self.values = [""]
+                names = set(list(temps.keys()) + list(fans.keys()))
+                for name in names:
+                    # Temperatures.
+                    if name in temps:
+                        self.values.append("   Temperatures:")
+                        for entry in temps[name]:
+                            self.values.append("     %-20s %s°C (high=%s°C, critical=%s°C)" % (
+                                entry.label or name, entry.current, entry.high, entry.critical))
+                    
+                    self.values.append("")
+                    # Fans.
+                    if name in fans:
+                        self.values.append("   Fans:")
+                        for entry in fans[name]:
+                            self.values.append("     %-20s %s RPM" %
+                                               (entry.label or name, entry.current))
 
-            names = set(list(temps.keys()) + list(fans.keys()))
-            for name in names:
-                # Temperatures.
-                if name in temps:
-                    self.values.append("   Temperatures:")
-                    for entry in temps[name]:
-                        self.values.append("     %-20s %s°C (high=%s°C, critical=%s°C)" % (
-                            entry.label or name, entry.current, entry.high, entry.critical))
-                # Fans.
-                if name in fans:
-                    self.values.append("   Fans:")
-                    for entry in fans[name]:
-                        self.values.append("     %-20s %s RPM" %
-                                           (entry.label or name, entry.current))
+                    self.values.append("")
 
-        self.display()
+                self.display()
+                time.sleep(1)
 
     def update_info(self, selected_item):
         # Permit to the thread to update info_box value, set to False to interrupt any running thread
@@ -217,13 +227,15 @@ class InfoBox(npyscreen.BoxTitle):
             self._can_update = True
             threading.Thread(target=self.set_cpu_info).start()
         elif selected_item == 2:
-            self.set_ram_info()
+            self._can_update = True
+            threading.Thread(target=self.set_ram_info).start()
         elif selected_item == 3:
             self.set_disk_info()
         elif selected_item == 4:
             self.set_network_info()
         elif selected_item == 5:
-            self.set_temperatures_info()
+            self._can_update = True
+            threading.Thread(target=self.set_temperatures_info).start()
 
 
 class MenuList(npyscreen.BoxTitle):
